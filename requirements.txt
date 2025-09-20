@@ -1,7 +1,2 @@
 discord
-python-dotenv 
-google-genai
-pillow
-cubescrambler
 flask
-sift-stack-py
