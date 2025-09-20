@@ -6,7 +6,7 @@ from flask import Flask, request
 import threading
 
 # ---- Config ----
-DISCORD_CHANNEL_ID = 123456789012345678  # ID channel Discord
+DISCORD_CHANNEL_ID = 1418954649410601085  # ID channel Discord
 TOKEN = os.getenv("DISCORD_TOKEN")      # Lấy token từ biến môi trường
 
 # ---- Discord Bot setup ----
