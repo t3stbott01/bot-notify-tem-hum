@@ -1,48 +1,58 @@
+import os
 import discord
 from discord.ext import commands
-from flask import Flask, request, jsonify
+import asyncio
+from flask import Flask, request
 import threading
-import os
 
-# Cấu hình bot
+# ---- Config ----
+DISCORD_CHANNEL_ID = 123456789012345678  # ID channel Discord
+TOKEN = os.getenv("DISCORD_TOKEN")      # Lấy token từ biến môi trường
+
+# ---- Discord Bot setup ----
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
+intents.presences = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Cấu hình Flask
-app = Flask(__name__)
-
-# Channel ID để gửi thông báo
-NOTIFY_CHANNEL_ID = "YOUR_CHANNEL_ID_HERE"  # Thay bằng ID channel Discord
-
-# Khi bot sẵn sàng
 @bot.event
 async def on_ready():
-    print(f'Bot đã sẵn sàng với tên: {bot.user.name}')
-    channel = bot.get_channel(NOTIFY_CHANNEL_ID)
+    print(f"✅ Bot đã đăng nhập: {bot.user}")
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send(f"Xin chào {ctx.author.mention} 👋!")
+
+# ---- Flask app ----
+app = Flask(__name__)
+
+@app.route("/notify", methods=["POST"])
+def notify():
+    data = request.json
+    print("📩 Nhận từ ThingSpeak:", data)
+
+    temperature = data.get("field1")
+    humidity = data.get("field2")
+
+    channel = bot.get_channel(DISCORD_CHANNEL_ID)
     if channel:
-        await channel.send("Bot đã khởi động và sẵn sàng nhận thông báo từ ThingSpeak!")
+        asyncio.run_coroutine_threadsafe(
+            channel.send(f"⚡ Cảnh báo! 🌡 {temperature}°C - 💧 {humidity}%"),
+            bot.loop
+        )
+    return {"status": "ok"}, 200
 
-# Endpoint webhook từ ThingSpeak
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.get_json()
-    if data and 'nhietdo' in data:
-        nhietdo = float(data['nhietdo'])
-        if nhietdo > 32:  # Ngưỡng nhiệt độ
-            channel = bot.get_channel(NOTIFY_CHANNEL_ID)
-            if channel:
-                embed = discord.Embed(
-                    title="Cảnh báo từ ThingSpeak!",
-                    description=f"Nhiệt độ: {nhietdo}°C vượt ngưỡng!",
-                    color=discord.Color.red()
-                )
-                bot.loop.create_task(channel.send(embed=embed))
-    return jsonify({"status": "received"})
+# ---- Chạy Flask song song với bot ----
+def run_flask():
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
 
-# Chạy bot và Flask
+threading.Thread(target=run_flask).start()
+
+# ---- Run Discord bot ----
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=bot.run, args=("os.environ.get('DISCORD_TOKEN')",))
-    bot_thread.start()
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
+    if not TOKEN:
+        print("❌ Chưa có DISCORD_TOKEN trong Environment Variable!")
+    else:
+        bot.run(TOKEN)
