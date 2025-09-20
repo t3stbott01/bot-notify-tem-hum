@@ -30,18 +30,28 @@ app = Flask(__name__)
 
 @app.route("/notify", methods=["POST"])
 def notify():
-    data = request.json
+    # Thử parse JSON trước
+    data = request.get_json(silent=True)
+    # Nếu không có JSON thì thử lấy form
+    if not data:
+        data = request.form.to_dict()
+
     print("📩 Nhận từ ThingSpeak:", data)
 
     temperature = data.get("field1")
     humidity = data.get("field2")
 
     channel = bot.get_channel(DISCORD_CHANNEL_ID)
+    print("🔎 Channel object:", channel)
+
     if channel:
         asyncio.run_coroutine_threadsafe(
             channel.send(f"⚡ Cảnh báo! 🌡 {temperature}°C - 💧 {humidity}%"),
             bot.loop
         )
+    else:
+        print("❌ Không tìm thấy channel hoặc bot chưa sẵn sàng.")
+
     return {"status": "ok"}, 200
 
 # ---- Chạy Flask song song với bot ----
