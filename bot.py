@@ -7,7 +7,7 @@ import threading
 
 # ---- Config ----
 DISCORD_CHANNEL_ID = 1418954649410601085  # ID channel Discord
-TOKEN = os.getenv("DISCORD_TOKEN")      # Lấy token từ biến môi trường
+TOKEN = os.getenv("DISCORD_TOKEN")       # Lấy token từ biến môi trường
 
 # ---- Discord Bot setup ----
 intents = discord.Intents.default()
@@ -30,32 +30,43 @@ app = Flask(__name__)
 
 @app.route("/notify", methods=["POST"])
 def notify():
-    # Thử parse JSON trước
-    data = request.get_json(silent=True)
-    # Nếu không có JSON thì thử lấy form
-    if not data:
-        data = request.form.to_dict()
+    try:
+        # Thử parse JSON trước
+        data = request.get_json(silent=True)
+        # Nếu không có JSON thì thử lấy form
+        if not data:
+            data = request.form.to_dict()
 
-    print("📩 Nhận từ ThingSpeak:", data)
+        print("📩 Nhận từ ThingSpeak:", data)
 
-    temperature = data.get("field1")
-    humidity = data.get("field2")
+        if not data:
+            print("⚠️ Không nhận được dữ liệu trong body request!")
+            return {"status": "no data"}, 400
 
-    channel = bot.get_channel(DISCORD_CHANNEL_ID)
-    print("🔎 Channel object:", channel)
+        temperature = data.get("field1")
+        humidity = data.get("field2")
 
-    if channel:
-        asyncio.run_coroutine_threadsafe(
-            channel.send(f"⚡ Cảnh báo! 🌡 {temperature}°C - 💧 {humidity}%"),
-            bot.loop
-        )
-    else:
-        print("❌ Không tìm thấy channel hoặc bot chưa sẵn sàng.")
+        print(f"🌡 Nhiệt độ = {temperature}, 💧 Độ ẩm = {humidity}")
+
+        channel = bot.get_channel(DISCORD_CHANNEL_ID)
+        print("🔎 Channel object:", channel)
+
+        if channel:
+            asyncio.run_coroutine_threadsafe(
+                channel.send(f"⚡ Cảnh báo! 🌡 {temperature}°C - 💧 {humidity}%"),
+                bot.loop
+            )
+        else:
+            print("❌ Không tìm thấy channel hoặc bot chưa sẵn sàng.")
+
+    except Exception as e:
+        print("🔥 Lỗi khi xử lý notify:", e)
 
     return {"status": "ok"}, 200
 
 # ---- Chạy Flask song song với bot ----
 def run_flask():
+    print("🚀 Flask server đang chạy ...")
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
 
 threading.Thread(target=run_flask).start()
